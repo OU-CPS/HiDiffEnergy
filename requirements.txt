@@ -1,0 +1,17 @@
+
+numpy
+pandas
+scipy
+
+
+torch
+scikit-learn
+joblib
+
+
+matplotlib
+tqdm
+
+statsmodels
+dtaidistance
+seaborn
