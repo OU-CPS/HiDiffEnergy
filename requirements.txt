@@ -9,6 +9,5 @@ tqdm
 statsmodels
 dtaidistance
 seaborn
-torch>=1.13
 torchvision
 fastdtw
