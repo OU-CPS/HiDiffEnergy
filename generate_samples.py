@@ -12,12 +12,10 @@ from hierarchial_diffusion_model import HierarchicalDiffusionModel
 # Path to the trained model file from your training run
 MODEL_PATH = 'training_logs/hierarchical_diffusion_2_days_2025-09-22_15-50-30/best_hierarchical_model.pth' 
 
-# The specific houses you want to generate and compare
-# Make sure these are valid house IDs from your dataset
-HOUSE_IDS_TO_USE = [10, 25, 42, 55, 60]
+HOUSE_IDS_TO_USE = []
 
 # How many different time-series samples to generate for each house
-NUM_SAMPLES_PER_HOUSE = 1 
+NUM_SAMPLES_PER_HOUSE = 100
 
 # Where to save the final comparison plot
 OUTPUT_PLOT_PATH = 'comparison_plot.png'
@@ -30,7 +28,7 @@ DIFFUSION_TIMESTEPS = 500
 DOWNSCALE_FACTOR = 4
 DROPOUT = 0.1
 USE_ATTENTION = True
-BLOCKS_PER_LEVEL = 3 # Make sure this matches your training script
+BLOCKS_PER_LEVEL = 4
 
 DATA_DIRECTORY = 'Ausgrid_processed_for_diffusion/per_house'
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
