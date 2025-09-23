@@ -87,5 +87,12 @@ For **implementation details** and **hyperparameter**
 For **implementation details** and **hyperparameter**
 - **Hugging Face**: ([https://github.com/amazon-science/unconditional-time-series-diffusion](https://huggingface.co/docs/diffusers/api/models/unet))
 
+  
+### 5. ResNet-Pytorch
+For **implementation details** and **hyperparameter**
+- **Github**: (https://github.com/JayPatwardhan/ResNet-PyTorch?tab=readme-ov-file)
+- **Pytorch- github** : (https://github.com/pytorch/vision/blob/main/torchvision/models/resnet.py)
+- **Paper**- (https://arxiv.org/pdf/1512.03385)
+- **Original Repo From Paper**- (https://github.com/KaimingHe/deep-residual-networks)
 
 
