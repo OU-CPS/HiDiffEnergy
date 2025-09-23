@@ -36,7 +36,7 @@ BATCH_SIZE = 512
 USE_AMP = True
 GRADIENT_CLIP_VAL = 0.1
 
-WINDOW_DURATION = '7_days'
+WINDOW_DURATION = '2_days'
 
 DATA_DIRECTORY = 'Ausgrid_processed_for_diffusion/per_house'
 NUM_WORKERS = os.cpu_count() // 2
