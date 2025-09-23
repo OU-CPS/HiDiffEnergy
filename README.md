@@ -82,7 +82,10 @@ For an in-depth explanation or theoretical background:
 For **implementation details** and **hyperparameter**
 - **Official Documentation**: (https://github.com/amazon-science/unconditional-time-series-diffusion)
 
-
+  
+### 4. Conditional UNet1DModel
+For **implementation details** and **hyperparameter**
+- **Hugging Face**: ([https://github.com/amazon-science/unconditional-time-series-diffusion](https://huggingface.co/docs/diffusers/api/models/unet))
 
 
 
