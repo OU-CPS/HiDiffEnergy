@@ -73,31 +73,13 @@ For an in-depth explanation or theoretical background:
 ---
 
 ### 2. TimeVAE
-Helpful resources for **hyperparameter tuning** and practical DQN insights:
-- **Official Documentation**: [https://github.com/openai/maddpg](https://github.com/jsyoon0823/TimeGAN](https://github.com/wangyz1999/timeVAE-pytorch))
+For an in-depth explanation or theoretical background:
+- **Official Documentation**:(https://github.com/jsyoon0823/TimeGAN](https://github.com/wangyz1999/timeVAE-pytorch))
 
 
 ### 3. Diffusion model
-For **implementation details** and **hyperparameter selection** in PPO:
-- **PyTorch Tutorial**: [pytorch.org/tutorials/intermediate/reinforcement_ppo.html](https://pytorch.org/tutorials/intermediate/reinforcement_ppo.html)
-- **Beginner-Friendly Repo**: [github.com/ericyangyu/PPO-for-Beginners](https://github.com/ericyangyu/PPO-for-Beginners)
-- - **Official Documentation**: (https://github.com/amazon-science/unconditional-time-series-diffusion)
-
----
-
-### 4. Policy Gradient Methods
-Introductory materials on **policy gradient** (and how you might adapt it for multi-agent setups):
-- **OpenAI Spinning Up**: [spinningup.openai.com VPG](https://spinningup.openai.com/en/latest/algorithms/vpg.html)
-- **PyTorch Notebook**: [github.com/tsmatz RL tutorials (Policy Gradient)](https://github.com/tsmatz/reinforcement-learning-tutorials/blob/master/02-policy-gradient.ipynb)
-
----
-
-### Other Relevant Sources
-- **Gymnasium (OpenAI Gym) Docs**: [gymnasium.farama.org](https://gymnasium.farama.org/)
-
-## Conclusion
-
-Thank you for exploring **SolarSharer** and its multi-agent reinforcement learning framework. We hope this environment and the accompanying training scripts help accelerate your research and development. If you have any questions, suggestions, or encounter any issues, please feel free to **open an issue** or **contact us directly** anany.p.gupta-1@ou.edu . We value your feedback. Thankyou!
+For **implementation details** and **hyperparameter**
+- **Official Documentation**: (https://github.com/amazon-science/unconditional-time-series-diffusion)
 
 
 
