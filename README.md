@@ -37,6 +37,8 @@ and fine-scale features
 - **Conditional Modeling**: Conditioned on household, temporal, and seasonal factors for context-aware and diverse profiles.  
 
 ---
+## Data
+We obtain our data from [**Ausgrid**][[https://www.ausgrid.com.au/Industry/Our-Research/Data-to-share] [**Pecan Street**][https://www.pecanstreet.org/dataport/ ]. You can check out data processing files for cleaning up the extra columns fixing sensor issues.
 
 ## Setup
 
