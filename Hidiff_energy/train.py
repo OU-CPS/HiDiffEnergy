@@ -11,15 +11,12 @@ import matplotlib.pyplot as plt
 import math
 import joblib  
 
-
 from scipy.stats import ks_2samp
 from statsmodels.tsa.stattools import acf
 from dtaidistance import dtw
 
-
 from dataloader import MultiHouseDataset
-from hierarchial_diffusion_model import HierarchicalDiffusionModel  # FIXED typo
-
+from hierarchial_diffusion_model import HierarchicalDiffusionModel
 
 if torch.cuda.is_available():
     DEVICE = "cuda"
@@ -33,28 +30,23 @@ else:
     DEVICE = "cpu"
     print("Using CPU.")
 
-# --- Model & Training Parameters ---
-EPOCHS = 80
-LEARNING_RATE = 1e-5
-BATCH_SIZE = 512 
+EPOCHS = 50
+LEARNING_RATE = 3e-5
+BATCH_SIZE = 512
 USE_AMP = True
-GRADIENT_CLIP_VAL = 1.0
+GRADIENT_CLIP_VAL = 0.1
 
-# --- Configurable Window Size ---
-WINDOW_DURATION = '7_days'  # Options: '2_days', '7_days', '15_days', '30_days'
+WINDOW_DURATION = '7_days'
 
-# --- Data & Model Architecture ---
 DATA_DIRECTORY = 'Ausgrid_processed_for_diffusion/per_house'
 NUM_WORKERS = os.cpu_count() // 2
 PIN_MEMORY = True
 USE_ATTENTION = True
 DROPOUT = 0.1
-HIDDEN_SIZE = 384
+HIDDEN_SIZE = 512
 EMBEDDING_DIM = 64
-DIFFUSION_TIMESTEPS = 400
+DIFFUSION_TIMESTEPS = 500
 DOWNSCALE_FACTOR = 4
-
-# --- Helper Functions ---
 
 def calculate_window_size(duration: str) -> int:
     SAMPLES_PER_DAY = 48
@@ -62,8 +54,7 @@ def calculate_window_size(duration: str) -> int:
         '2_days': 2 * SAMPLES_PER_DAY,
         '7_days': 7 * SAMPLES_PER_DAY,
         '15_days': 15 * SAMPLES_PER_DAY,
-        '30_days': 30 * SAMPLES_PER_DAY,
-        '1_month': 30 * SAMPLES_PER_DAY
+        '30_days': 30 * SAMPLES_PER_DAY
     }
     if duration not in mapping:
         raise ValueError(f"Invalid WINDOW_DURATION: {duration}")
@@ -73,13 +64,11 @@ def denormalize_data(normalized_data, scaler_path='global_scaler.gz'):
     scaler = joblib.load(scaler_path)
     original_shape = normalized_data.shape
     if len(original_shape) == 3:
-        # Batch of sequences
         batch_size, seq_len, features = original_shape
         normalized_flat = normalized_data.reshape(-1, features)
         denormalized_flat = scaler.inverse_transform(normalized_flat)
         return denormalized_flat.reshape(original_shape)
     else:
-        # Single sequence
         return scaler.inverse_transform(normalized_data)
 
 def moving_average(data, window_size):
@@ -114,8 +103,6 @@ def generate_and_plot_samples(model, num_samples, num_houses, num_features, devi
         generated_data = model.sample(num_samples, sample_conditions, shape=shape)
     
     generated_data_np = generated_data.cpu().numpy()
-    
-    # DENORMALIZE the generated samples
     generated_data_denorm = denormalize_data(generated_data_np)
 
     cols = min(4, num_samples)
@@ -168,7 +155,6 @@ def evaluate_model(model, dataset, num_samples_to_eval, device, log_dir):
     print("\n--- Starting Comprehensive Model Evaluation ---")
     model.eval()
 
-
     num_features = dataset[0][0].shape[1]
     window_size = dataset.window_size
     num_houses = dataset.num_houses
@@ -180,6 +166,7 @@ def evaluate_model(model, dataset, num_samples_to_eval, device, log_dir):
     for batch, _ in real_dataloader:
         real_samples_list.append(batch.cpu().numpy())
     real_samples = np.concatenate(real_samples_list, axis=0)
+    
     print(f"Generating {num_samples_to_eval} samples for evaluation...")
     fake_conditions = {
         "house_id": torch.randint(0, num_houses, (num_samples_to_eval,), device=device),
@@ -190,6 +177,7 @@ def evaluate_model(model, dataset, num_samples_to_eval, device, log_dir):
     with torch.no_grad():
         shape = (window_size, num_features)
         fake_samples = model.sample(num_samples_to_eval, fake_conditions, shape=shape).cpu().numpy()
+        
     print("Denormalizing samples for evaluation...")
     real_samples_denorm = denormalize_data(real_samples)
     fake_samples_denorm = denormalize_data(fake_samples)
@@ -201,57 +189,39 @@ def evaluate_model(model, dataset, num_samples_to_eval, device, log_dir):
         f.write("="*50 + "\n")
         f.write("      Hierarchical Diffusion Model Evaluation Report\n")
         f.write("="*50 + "\n\n")
-        f.write("NOTE: All metrics computed on DENORMALIZED data (original kW scale)\n\n")
         f.write("--- 1. Distributional Similarity (Kolmogorov-Smirnov Test) ---\n")
-        f.write("Measures the maximum difference between CDFs. Lower is better.\n\n")
-        
         ks_stats = []
-        for i in range(2):  # Only evaluate Grid and Solar (not temporal features)
+        for i in range(2):
             ks_stat, _ = ks_2samp(real_samples_denorm[:, :, i].flatten(), 
                                   fake_samples_denorm[:, :, i].flatten())
             ks_stats.append(ks_stat)
             f.write(f"  {feature_names[i]}: KS statistic = {ks_stat:.4f}\n")
+        f.write(f"\nAverage K-S Statistic (Grid & Solar only): {np.mean(ks_stats):.4f}\n\n")
         
-        avg_ks_stat = np.mean(ks_stats)
-        f.write(f"\nAverage K-S Statistic (Grid & Solar only): {avg_ks_stat:.4f}\n\n")
-        
-        # 2. MMD on denormalized data
         print("Calculating Maximum Mean Discrepancy (MMD)...")
         f.write("--- 2. Distributional Similarity (Maximum Mean Discrepancy) ---\n")
-        f.write("Measures distance between distributions. Lower is better.\n\n")
-        
         MMD_BATCH_SIZE = 2048
-        N_BATCHES = 50  # Reduced for speed
-        
+        N_BATCHES = 50
         mmd_scores = []
-        for i in range(2):  # Only Grid and Solar
+        for i in range(2):
             real_flat = real_samples_denorm[:, :, i].flatten()
             fake_flat = fake_samples_denorm[:, :, i].flatten()
-            
             batch_mmds = []
             for _ in tqdm(range(N_BATCHES), desc=f"MMD {feature_names[i]}", leave=False):
                 real_batch = np.random.choice(real_flat, MMD_BATCH_SIZE, replace=True)
                 fake_batch = np.random.choice(fake_flat, MMD_BATCH_SIZE, replace=True)
                 mmd_val = mmd_rbf(real_batch, fake_batch)
                 batch_mmds.append(mmd_val)
-            
             mmd_scores.append(np.mean(batch_mmds))
             f.write(f"  {feature_names[i]}: MMD = {mmd_scores[-1]:.6f}\n")
-            
-        avg_mmd_score = np.mean(mmd_scores)
-        f.write(f"\nAverage MMD Score (Grid & Solar): {avg_mmd_score:.6f}\n\n")
+        f.write(f"\nAverage MMD Score (Grid & Solar): {np.mean(mmd_scores):.6f}\n\n")
 
-        # 3. Temporal Correlation (ACF on denormalized Grid Usage)
         print("Calculating Autocorrelation...")
         sample_size = min(500, num_samples_to_eval)
-        acf_real_avg = np.mean([acf(real_samples_denorm[i, :, 0], nlags=48, fft=True) 
-                                for i in range(sample_size)], axis=0)
-        acf_fake_avg = np.mean([acf(fake_samples_denorm[i, :, 0], nlags=48, fft=True) 
-                                for i in range(sample_size)], axis=0)
+        acf_real_avg = np.mean([acf(real_samples_denorm[i, :, 0], nlags=48, fft=True) for i in range(sample_size)], axis=0)
+        acf_fake_avg = np.mean([acf(fake_samples_denorm[i, :, 0], nlags=48, fft=True) for i in range(sample_size)], axis=0)
         acf_mse = np.mean((acf_real_avg - acf_fake_avg)**2)
-        
         f.write("--- 3. Temporal Correlation (ACF Similarity) ---\n")
-        f.write("Measures MSE between average ACFs. Lower indicates better temporal realism.\n\n")
         f.write(f"ACF Similarity (MSE) for Grid Usage: {acf_mse:.6f}\n\n")
 
         plt.figure(figsize=(10, 6))
@@ -264,63 +234,49 @@ def evaluate_model(model, dataset, num_samples_to_eval, device, log_dir):
         plt.savefig(acf_plot_path); plt.close()
         print(f" ACF plot saved to {acf_plot_path}")
 
-        # 4. Trajectory Similarity (DTW on denormalized data)
         f.write("--- 4. Trajectory Similarity (DTW on Denormalized) ---\n")
-        f.write("Measures shape similarity between real and generated series. Lower is better.\n\n")
-        
         print("Calculating trajectory similarity...")
         dtw_distances_grid = []
         dtw_distances_solar = []
-        
         for i in tqdm(range(min(500, num_samples_to_eval)), desc="DTW"):
             dtw_grid = dtw.distance(real_samples_denorm[i, :, 0], fake_samples_denorm[i, :, 0])
             dtw_solar = dtw.distance(real_samples_denorm[i, :, 1], fake_samples_denorm[i, :, 1])
             dtw_distances_grid.append(dtw_grid)
             dtw_distances_solar.append(dtw_solar)
-            
         f.write(f"Dynamic Time Warping (DTW) Distance:\n")
-        f.write(f"  Grid Usage:  Mean = {np.mean(dtw_distances_grid):.2f} kW, Std = {np.std(dtw_distances_grid):.2f} kW\n")
-        f.write(f"  Solar Gen:   Mean = {np.mean(dtw_distances_solar):.2f} kW, Std = {np.std(dtw_distances_solar):.2f} kW\n\n")
+        f.write(f"  Grid Usage:  Mean = {np.mean(dtw_distances_grid):.2f} kW\n")
+        f.write(f"  Solar Gen:   Mean = {np.mean(dtw_distances_solar):.2f} kW\n\n")
         
-        # 5. Basic Statistics Comparison
         f.write("--- 5. Basic Statistics Comparison (Denormalized) ---\n")
-        f.write("Comparing mean and std of real vs generated data:\n\n")
-        
-        for i in range(2):  # Grid and Solar only
+        for i in range(2):
             real_mean = np.mean(real_samples_denorm[:, :, i])
-            real_std = np.std(real_samples_denorm[:, :, i])
             fake_mean = np.mean(fake_samples_denorm[:, :, i])
-            fake_std = np.std(fake_samples_denorm[:, :, i])
             f.write(f"{feature_names[i]}:\n")
-            f.write(f"  Real: Mean = {real_mean:.3f} kW, Std = {real_std:.3f} kW\n")
-            f.write(f"  Fake: Mean = {fake_mean:.3f} kW, Std = {fake_std:.3f} kW\n")
-            f.write(f"  Difference: Mean = {abs(real_mean - fake_mean):.3f} kW, Std = {abs(real_std - fake_std):.3f} kW\n\n")
+            f.write(f"  Real: Mean = {real_mean:.3f} kW\n")
+            f.write(f"  Fake: Mean = {fake_mean:.3f} kW\n")
+            f.write(f"  Difference: Mean = {abs(real_mean - fake_mean):.3f} kW\n\n")
 
     print(f" Evaluation complete. Report saved to {report_path}")
 
 def train_diffusion(log_dir, model_save_path):
-    """Main training loop for hierarchical diffusion model."""
     print("--- Starting Hierarchical Diffusion Training ---")
     window_size = calculate_window_size(WINDOW_DURATION)
     print(f"Using window duration: {WINDOW_DURATION} ({window_size} samples)")
 
-    # Load dataset with appropriate settings for hierarchical model
     dataset = MultiHouseDataset(
         data_dir=DATA_DIRECTORY, 
         window_size=window_size, 
-        step_size=window_size,  
+        step_size=window_size//2,  
         limit_to_one_year=False  
     )
     print(f"Dataset loaded: {len(dataset)} samples, {dataset.num_houses} houses, {dataset[0][0].shape[1]} features.")
 
-    # Split dataset
     val_split = 0.1
     val_size = int(len(dataset) * val_split)
     train_size = len(dataset) - val_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     print(f"Train size: {train_size}, Validation size: {val_size}")
 
-    # Create dataloaders
     train_dataloader = DataLoader(
         train_dataset, batch_size=BATCH_SIZE, shuffle=True, 
         num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY, drop_last=True
@@ -330,7 +286,6 @@ def train_diffusion(log_dir, model_save_path):
         num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY
     )
 
-    # Create model
     model = HierarchicalDiffusionModel(
         in_channels=dataset[0][0].shape[1],
         num_houses=dataset.num_houses,
@@ -343,7 +298,6 @@ def train_diffusion(log_dir, model_save_path):
         blocks_per_level=3
     ).to(DEVICE)
     
-    # Optimizer and scheduler
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
     scaler = GradScaler(enabled=(USE_AMP and DEVICE == "cuda"))
@@ -377,7 +331,6 @@ def train_diffusion(log_dir, model_save_path):
         avg_train_loss = total_train_loss / len(train_dataloader)
         train_losses.append(avg_train_loss)
         
-        # Validation
         model.eval()
         total_val_loss = 0.0
         with torch.no_grad():
@@ -419,16 +372,13 @@ if __name__ == "__main__":
     print(f"Starting new run: {run_name}")
     print(f"Logs and models will be saved to: {log_dir}")
 
-    # Train model
     full_dataset = train_diffusion(log_dir=log_dir, model_save_path=model_path)
     
-
     sample_data, sample_conditions = full_dataset[0]  
     num_features = sample_data.shape[1]
     num_houses = full_dataset.num_houses
     window_size = full_dataset.window_size
 
-    # Load best model for evaluation
     final_model = HierarchicalDiffusionModel(
         in_channels=num_features,
         num_houses=num_houses,
@@ -450,6 +400,7 @@ if __name__ == "__main__":
         else:
             cleaned_state_dict[key] = value
     final_model.load_state_dict(cleaned_state_dict)
+    
     generate_and_plot_samples(
         model=final_model, 
         num_samples=8, 
