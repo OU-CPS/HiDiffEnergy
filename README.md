@@ -55,7 +55,7 @@ Install dependencies:
 ```
 pip install -r requirements.txt
 ```
-Then run the train.py for each of of the code.
+Then run the train.py for each of the code.
 ```
 python train.py
 
